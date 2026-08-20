@@ -1,0 +1,434 @@
+:root {
+  --bg-0: #0a0e1a;
+  --bg-1: #0f1424;
+  --surface: rgba(255, 255, 255, 0.045);
+  --surface-2: rgba(255, 255, 255, 0.07);
+  --surface-hover: rgba(255, 255, 255, 0.1);
+  --border: rgba(255, 255, 255, 0.09);
+  --border-strong: rgba(255, 255, 255, 0.16);
+  --text: #eef1f8;
+  --muted: #8b95ad;
+  --faint: #5e6880;
+  --accent: #818cf8;
+  --accent-grad: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+  --ok: #34d399;
+  --ok-soft: rgba(52, 211, 153, 0.15);
+  --warn: #fbbf24;
+  --warn-soft: rgba(251, 191, 36, 0.15);
+  --danger: #f87171;
+  --danger-grad: linear-gradient(135deg, #f43f5e 0%, #ef4444 100%);
+  --radius: 14px;
+  --radius-sm: 10px;
+  --shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  --shadow-glow: 0 6px 20px rgba(99, 102, 241, 0.35);
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  font-family: "Segoe UI Variable Display", "Segoe UI", system-ui, -apple-system, sans-serif;
+  color: var(--text);
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  background:
+    radial-gradient(1200px 500px at 80% -10%, rgba(168, 85, 247, 0.14), transparent 60%),
+    radial-gradient(1000px 500px at -10% 0%, rgba(99, 102, 241, 0.16), transparent 55%),
+    linear-gradient(180deg, var(--bg-1) 0%, var(--bg-0) 100%);
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Form fields must stay editable/selectable (body sets user-select:none). */
+input, textarea, select {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 10px; }
+::-webkit-scrollbar-thumb { background: var(--surface-2); border-radius: 8px; border: 2px solid transparent; background-clip: padding-box; }
+::-webkit-scrollbar-thumb:hover { background: var(--border-strong); background-clip: padding-box; }
+
+/* ---------------------------------------------------------------- Header */
+.topbar { padding: 16px 18px 14px; flex: 0 0 auto; }
+
+.brand { display: flex; align-items: center; gap: 11px; margin-bottom: 16px; }
+.logo { filter: drop-shadow(0 4px 10px rgba(124, 92, 246, 0.45)); flex: 0 0 auto; }
+.brand-text h1 { font-size: 17px; margin: 0; font-weight: 700; letter-spacing: -0.2px; }
+.brand-sub { font-size: 11.5px; color: var(--muted); }
+
+/* Segmented tabs */
+.tabs {
+  position: relative;
+  display: flex;
+  gap: 2px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 4px;
+}
+.tab {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  background: transparent;
+  color: var(--muted);
+  border: none;
+  padding: 8px;
+  border-radius: 9px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  transition: color 0.2s ease;
+}
+.tab:hover { color: var(--text); }
+.tab.active { color: #fff; }
+/* Live-timer marker on the Track tab — visible from any tab. */
+.tab.tracking::after, .tab.tracking-paused::after {
+  content: '';
+  display: inline-block;
+  width: 6px; height: 6px;
+  margin-left: 5px;
+  vertical-align: middle;
+  border-radius: 50%;
+}
+.tab.tracking::after {
+  background: var(--ok);
+  box-shadow: 0 0 6px var(--ok);
+  animation: pulse 1.6s infinite;
+}
+.tab.tracking-paused::after {
+  background: var(--warn);
+  box-shadow: 0 0 6px var(--warn);
+}
+.tab-indicator {
+  position: absolute;
+  top: 4px; left: 4px;
+  height: calc(100% - 8px);
+  width: calc((100% - 8px) / 3);
+  background: var(--accent-grad);
+  border-radius: 9px;
+  box-shadow: var(--shadow-glow);
+  transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ---------------------------------------------------------------- Layout */
+main { flex: 1 1 auto; overflow-y: auto; padding: 4px 18px 20px; }
+
+.tab-panel { display: none; animation: fade 0.25s ease; }
+.tab-panel.active { display: block; }
+@keyframes fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+.field { display: block; margin-bottom: 13px; }
+.field > span { display: block; font-size: 11.5px; color: var(--muted); margin-bottom: 5px; font-weight: 600; }
+
+input[type="text"], input[type="date"], input[type="number"], select, textarea {
+  width: 100%;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  font-size: 14px;
+  font-family: inherit;
+  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+}
+input::placeholder, textarea::placeholder { color: var(--faint); }
+textarea { resize: vertical; }
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  background: var(--surface-2);
+  box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.18);
+}
+select { cursor: pointer; color-scheme: dark; }
+/* The native dropdown popup (the <option> list) is drawn by the OS, not by the
+   page. Without an explicit solid background + text color, Windows renders the
+   unselected options dark-on-dark and they look greyed out / unreadable. */
+select option {
+  background: #161c30;
+  color: var(--text);
+}
+select option:checked {
+  background: var(--accent);
+  color: #fff;
+}
+input[type="date"] { color-scheme: dark; }
+
+/* ---------------------------------------------------------------- Buttons */
+.btn {
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 15px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  transition: transform 0.12s ease, background 0.15s, box-shadow 0.15s, opacity 0.15s;
+}
+.btn:hover { background: var(--surface-hover); }
+.btn:active { transform: translateY(1px); }
+.btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
+.btn.primary { background: var(--accent-grad); border-color: transparent; color: #fff; box-shadow: var(--shadow-glow); }
+.btn.primary:hover { filter: brightness(1.08); }
+.btn.danger { background: var(--danger-grad); border-color: transparent; color: #fff; }
+.btn.danger:hover { filter: brightness(1.08); }
+.btn.small { padding: 7px 11px; font-size: 13px; }
+.btn.ghost { background: transparent; }
+
+/* ---------------------------------------------------------------- Timer */
+.timer-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 22px 18px 18px;
+  text-align: center;
+  margin-bottom: 18px;
+  box-shadow: var(--shadow);
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+.timer-card::before {
+  content: "";
+  position: absolute; inset: 0;
+  background: radial-gradient(420px 120px at 50% -30%, rgba(99, 102, 241, 0.18), transparent 70%);
+  pointer-events: none;
+}
+.timer-card.running { border-color: rgba(52, 211, 153, 0.5); box-shadow: 0 0 0 1px rgba(52, 211, 153, 0.25), 0 10px 30px rgba(16, 185, 129, 0.18); }
+
+.timer-display {
+  font-size: 52px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 1px;
+  line-height: 1.05;
+  position: relative;
+}
+.timer-card.running .timer-display {
+  background: linear-gradient(135deg, #6ee7b7, #34d399);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.timer-status {
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+  color: var(--muted); margin: 6px 0 16px; font-size: 13px; font-weight: 600;
+  position: relative;
+}
+.run-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--faint); transition: background 0.3s; }
+.timer-card.running .run-dot { background: var(--ok); box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.6); animation: pulse 1.6s infinite; }
+.timer-card.running .timer-status { color: var(--ok); }
+
+/* Paused: a session is open but not counting — amber, and a STEADY dot (no
+   pulse) so it reads as "held" rather than "live". Distinct from Stopped (grey,
+   no active session) and Running (green, pulsing). */
+.timer-card.paused { border-color: rgba(251, 191, 36, 0.5); box-shadow: 0 0 0 1px rgba(251, 191, 36, 0.22), 0 10px 30px rgba(245, 158, 11, 0.16); }
+.timer-card.paused .timer-display {
+  background: linear-gradient(135deg, #fcd34d, #fbbf24);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.timer-card.paused .run-dot { background: var(--warn); box-shadow: 0 0 6px rgba(251, 191, 36, 0.55); }
+.timer-card.paused .timer-status { color: var(--warn); }
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.55); }
+  70% { box-shadow: 0 0 0 9px rgba(52, 211, 153, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0); }
+}
+
+.timer-buttons { display: flex; gap: 8px; justify-content: center; position: relative; }
+.timer-buttons .btn { flex: 1; }
+
+.hint { color: var(--faint); font-size: 11px; margin: 16px 0 0; line-height: 1.7; position: relative; }
+kbd {
+  background: var(--surface-2);
+  border: 1px solid var(--border-strong);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  padding: 1px 6px;
+  font-size: 10.5px;
+  font-family: inherit;
+  color: var(--text);
+}
+
+/* ---------------------------------------------------------------- Day view */
+.day-header { display: flex; gap: 6px; align-items: center; margin-bottom: 10px; }
+.day-header input[type="date"] { flex: 1; }
+
+.section-title { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin: 20px 0 9px; font-weight: 700; }
+
+.totals { display: flex; flex-direction: column; gap: 7px; }
+.total-row {
+  display: flex; justify-content: space-between; align-items: center;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 11px 13px;
+  transition: background 0.15s;
+}
+.total-row:hover { background: var(--surface-2); }
+.total-row .name { font-weight: 600; display: flex; align-items: center; gap: 7px; }
+.total-row .hours { font-variant-numeric: tabular-nums; color: var(--ok); font-weight: 700; }
+.live-tag {
+  font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700;
+  color: var(--ok); background: var(--ok-soft); padding: 2px 6px; border-radius: 6px;
+}
+
+.sessions { display: flex; flex-direction: column; gap: 7px; }
+.session-row {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 11px 13px;
+  transition: background 0.15s, border-color 0.15s;
+}
+.session-row:hover { background: var(--surface-2); border-color: var(--border-strong); }
+.session-row .meta { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin-bottom: 5px; gap: 8px; }
+.session-row .client { font-weight: 700; color: var(--text); }
+.session-row .note { font-size: 13px; line-height: 1.45; }
+.session-row .note:empty::before { content: "No note"; color: var(--faint); font-style: italic; }
+.session-row .row-actions, .client-card .row-actions { display: flex; gap: 12px; margin-top: 9px; }
+.session-row .row-actions button, .client-card .row-actions button {
+  background: none; border: none; color: var(--muted); cursor: pointer; font-size: 12px; padding: 0; font-weight: 600;
+  transition: color 0.15s;
+}
+.session-row .row-actions button:hover, .client-card .row-actions button:hover { color: var(--accent); }
+
+/* ---------------------------------------------------------------- Clients */
+.client-form { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 10px; box-shadow: var(--shadow); }
+.form-buttons { display: flex; gap: 8px; flex-wrap: wrap; }
+.client-list { display: flex; flex-direction: column; gap: 7px; }
+.client-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 13px; transition: background 0.15s; }
+.client-card:hover { background: var(--surface-2); }
+.client-card .name { font-weight: 700; }
+.client-card .sub { font-size: 12px; color: var(--muted); white-space: pre-wrap; margin-top: 2px; }
+
+.muted { color: var(--muted); font-size: 12px; line-height: 1.6; }
+.empty { color: var(--faint); font-style: italic; padding: 12px 2px; text-align: center; }
+
+/* ---------------------------------------------------------------- Modal */
+.modal {
+  position: fixed; inset: 0; background: rgba(5, 8, 16, 0.7); backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 50;
+  animation: fade 0.18s ease;
+}
+.modal[hidden] { display: none; }
+.modal-box {
+  background: linear-gradient(180deg, var(--bg-1), var(--bg-0));
+  border: 1px solid var(--border-strong); border-radius: var(--radius);
+  padding: 20px; width: 100%; max-width: 360px; box-shadow: 0 24px 60px rgba(0,0,0,0.55);
+}
+.modal-box h3 { margin: 0 0 14px; font-size: 16px; font-weight: 700; }
+.modal-box textarea { margin-bottom: 14px; }
+
+/* ---------------------------------------------------------------- Toast */
+.toast {
+  position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
+  background: var(--surface-2); border: 1px solid var(--border-strong); color: var(--text);
+  padding: 11px 18px; border-radius: 10px; z-index: 60; font-size: 13px; font-weight: 600;
+  max-width: 90%; box-shadow: var(--shadow); backdrop-filter: blur(8px);
+  animation: toastIn 0.22s ease;
+}
+.toast[hidden] { display: none; }
+@keyframes toastIn { from { opacity: 0; } to { opacity: 1; } }
+
+/* ---------------------------------------------------------------- v2 additions */
+
+/* Stat strip (Track) */
+.stat-strip { display: flex; gap: 8px; margin-bottom: 14px; }
+.stat {
+  flex: 1; background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 10px 12px; display: flex; flex-direction: column; gap: 2px;
+}
+.stat-label { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted); font-weight: 700; }
+.stat-value { font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+/* Select with colour dot */
+.select-wrap { position: relative; }
+.select-wrap select { padding-left: 30px; }
+.select-dot { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); width: 10px; height: 10px; border-radius: 50%; background: var(--faint); pointer-events: none; }
+
+/* Colour dots in lists */
+.dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; flex: 0 0 auto; }
+.total-row .name, .client-card .name, .session-row .client, .summary-head .name { display: flex; align-items: center; gap: 8px; }
+
+/* Two-column field row */
+.row-2 { display: flex; gap: 10px; }
+.row-2 .field { flex: 1; }
+
+/* Checkbox row */
+.check { display: flex; align-items: center; gap: 9px; margin-bottom: 10px; cursor: pointer; font-size: 13px; }
+.check input { width: 16px; height: 16px; accent-color: var(--accent); }
+
+/* Colour swatches */
+.swatches { display: flex; flex-wrap: wrap; gap: 8px; padding-top: 2px; }
+.swatch {
+  position: relative;
+  width: 24px; height: 24px; border-radius: 7px;
+  border: 2px solid transparent; cursor: pointer; padding: 0;
+  transition: box-shadow 0.12s, border-color 0.12s;
+}
+/* NOTE: do not use transform/scale on :hover — an animating element under the
+   cursor breaks real mouse clicks (mousedown/mouseup land on different targets). */
+.swatch:hover { border-color: rgba(255, 255, 255, 0.55); }
+.swatch.active { border-color: #fff; box-shadow: 0 0 0 2px var(--bg-0), 0 0 0 4px #fff; }
+.swatch.active::after {
+  content: '✓';
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-size: 13px; font-weight: 800;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
+}
+
+/* Hotkey recorder */
+.hotkey-record { display: flex; gap: 8px; align-items: stretch; }
+.hotkey-record input { flex: 1 1 auto; cursor: pointer; }
+.hotkey-record input:focus { border-color: #6366f1; box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.3); }
+
+/* Mini segmented control + period nav (History) */
+.segmented.mini { display: inline-flex; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 3px; gap: 2px; }
+.period-btn { background: transparent; color: var(--muted); border: none; padding: 6px 14px; border-radius: 7px; cursor: pointer; font-size: 12.5px; font-weight: 600; font-family: inherit; transition: all 0.15s; }
+.period-btn:hover { color: var(--text); }
+.period-btn.active { background: var(--accent-grad); color: #fff; box-shadow: var(--shadow-glow); }
+.period-bar { margin-bottom: 10px; }
+.period-nav { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.period-label { flex: 1; text-align: center; font-weight: 700; font-size: 14px; }
+
+/* Section title extras */
+.section-title { display: flex; align-items: center; justify-content: space-between; }
+.title-note { font-size: 10px; font-weight: 600; color: var(--faint); text-transform: none; letter-spacing: 0; }
+.title-action { text-transform: none; letter-spacing: 0; }
+
+/* Search */
+.search { margin-bottom: 9px; }
+
+/* Summary (dashboard) */
+.summary { display: flex; flex-direction: column; gap: 9px; margin-bottom: 4px; }
+.summary-row { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 11px 13px; }
+.summary-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.summary-head .vals { display: flex; gap: 10px; align-items: baseline; font-variant-numeric: tabular-nums; }
+.summary-head .hrs { font-weight: 700; }
+.summary-head .earn { color: var(--ok); font-weight: 700; font-size: 13px; }
+.bar { height: 7px; background: rgba(255,255,255,0.06); border-radius: 6px; overflow: hidden; }
+.bar-fill { display: block; height: 100%; border-radius: 6px; transition: width 0.4s cubic-bezier(0.22,1,0.36,1); }
+.summary-total { display: flex; justify-content: space-between; font-weight: 700; padding: 10px 13px 2px; color: var(--text); font-variant-numeric: tabular-nums; }
+
+/* Date dividers in history */
+.date-divider { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin: 12px 2px 3px; }
+.date-divider:first-child { margin-top: 0; }
+
+/* Session edit modal time pair */
+.time-pair { display: flex; align-items: center; gap: 6px; }
+.time-pair input { flex: 1; }
+.time-pair .dash { color: var(--muted); }
+.client-card .name .rate { margin-left: auto; font-size: 12px; color: var(--ok); font-weight: 700; }
+input[type="time"] { color-scheme: dark; }

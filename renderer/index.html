@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Stint</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <svg class="logo" width="34" height="34" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <defs>
+          <linearGradient id="logoGrad" x1="5" y1="5" x2="43" y2="43" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#6366f1"/>
+            <stop offset="1" stop-color="#a855f7"/>
+          </linearGradient>
+        </defs>
+        <!-- app tile -->
+        <rect x="3" y="3" width="42" height="42" rx="12" fill="url(#logoGrad)"/>
+        <!-- stopwatch crown + neck -->
+        <rect x="20.5" y="6" width="7" height="4" rx="1.6" fill="#fff" fill-opacity="0.92"/>
+        <rect x="22.5" y="9.5" width="3" height="3" fill="#fff" fill-opacity="0.92"/>
+        <!-- watch face ring -->
+        <circle cx="24" cy="28" r="13" stroke="#fff" stroke-opacity="0.30" stroke-width="2.5"/>
+        <!-- elapsed sweep -->
+        <path d="M24 15 A13 13 0 0 1 33.2 18.8" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+        <!-- hand reaching the live 'now' point -->
+        <path d="M24 28 L33.2 18.8" stroke="#fff" stroke-width="3.2" stroke-linecap="round"/>
+        <circle cx="24" cy="28" r="2.6" fill="#fff"/>
+        <!-- live tracking dot (matches the running-state green) -->
+        <circle cx="33.2" cy="18.8" r="3.4" fill="#34d399"/>
+      </svg>
+      <div class="brand-text">
+        <h1>Stint</h1>
+        <span class="brand-sub">Quick client time logging</span>
+      </div>
+    </div>
+    <nav class="tabs" role="tablist">
+      <span class="tab-indicator" id="tab-indicator"></span>
+      <button class="tab active" data-tab="track">Track</button>
+      <button class="tab" data-tab="history">History</button>
+      <button class="tab" data-tab="clients">Clients</button>
+      <button class="tab" data-tab="data">Settings</button>
+    </nav>
+  </header>
+
+  <main>
+    <!-- ============================ TRACK TAB ============================ -->
+    <section id="tab-track" class="tab-panel active">
+      <div class="stat-strip">
+        <div class="stat">
+          <span class="stat-label">Today</span>
+          <span class="stat-value" id="stat-today">0.00 h</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">This week</span>
+          <span class="stat-value" id="stat-week">0.00 h</span>
+        </div>
+      </div>
+
+      <label class="field">
+        <span>Client</span>
+        <div class="select-wrap">
+          <span class="select-dot" id="select-dot"></span>
+          <select id="client-select"></select>
+        </div>
+      </label>
+
+      <div class="timer-card" id="timer-card">
+        <div class="timer-display" id="timer-display">00:00:00</div>
+        <div class="timer-status" id="timer-status">
+          <span class="run-dot"></span>
+          <span class="status-text">Stopped</span>
+        </div>
+        <div class="timer-buttons">
+          <button id="btn-start" class="btn primary">Start</button>
+          <button id="btn-pause" class="btn" disabled>Pause</button>
+          <button id="btn-stop" class="btn danger" disabled>Stop</button>
+        </div>
+        <p class="hint">Shortcuts: <kbd>Space</kbd> start/pause · <kbd>S</kbd> stop · <kbd>1</kbd>–<kbd>9</kbd> pick client · open anywhere <kbd id="hk-global">Ctrl+Shift+Space</kbd></p>
+      </div>
+
+      <h2 class="section-title">Today's time per client</h2>
+      <div id="today-totals" class="totals"></div>
+    </section>
+
+    <!-- ============================ HISTORY TAB ============================ -->
+    <section id="tab-history" class="tab-panel">
+      <div class="period-bar">
+        <div class="segmented mini">
+          <button class="period-btn active" data-period="day">Day</button>
+          <button class="period-btn" data-period="week">Week</button>
+          <button class="period-btn" data-period="month">Month</button>
+        </div>
+      </div>
+      <div class="period-nav">
+        <button id="period-prev" class="btn small">‹</button>
+        <span id="period-label" class="period-label">Today</span>
+        <button id="period-next" class="btn small">›</button>
+        <button id="period-reset" class="btn small ghost">Now</button>
+      </div>
+
+      <h2 class="section-title">Summary <span class="title-note" id="summary-note"></span></h2>
+      <div id="history-summary" class="summary"></div>
+
+      <h2 class="section-title">
+        Sessions
+        <button id="btn-add-session" class="btn small primary title-action">+ Add</button>
+      </h2>
+      <input type="text" id="history-search" class="search" placeholder="Search notes or client…" />
+      <div id="history-sessions" class="sessions"></div>
+    </section>
+
+    <!-- ============================ CLIENTS TAB ============================ -->
+    <section id="tab-clients" class="tab-panel">
+      <form id="client-form" class="client-form">
+        <input type="hidden" id="client-id" />
+        <input type="hidden" id="client-color" />
+        <label class="field">
+          <span>Name *</span>
+          <input type="text" id="client-name" required placeholder="Acme Ltd" />
+        </label>
+        <div class="row-2">
+          <label class="field">
+            <span>Day rate</span>
+            <input type="number" id="client-day-rate" min="0" step="0.01" placeholder="e.g. 250" />
+          </label>
+          <label class="field">
+            <span>Colour</span>
+            <div class="swatches" id="color-swatches"></div>
+          </label>
+        </div>
+        <label class="field">
+          <span>Address</span>
+          <input type="text" id="client-address" placeholder="123 High St, Townsville" />
+        </label>
+        <label class="field">
+          <span>Details</span>
+          <textarea id="client-details" rows="3" placeholder="Contact, project, anything useful…"></textarea>
+        </label>
+        <div class="form-buttons">
+          <button type="submit" class="btn primary" id="client-save">Add client</button>
+          <button type="button" class="btn ghost" id="client-cancel" hidden>Cancel</button>
+        </div>
+      </form>
+
+      <h2 class="section-title">Clients</h2>
+      <div id="client-list" class="client-list"></div>
+    </section>
+
+    <!-- ============================ DATA TAB ============================ -->
+    <section id="tab-data" class="tab-panel">
+      <h2 class="section-title">Export &amp; backup</h2>
+      <p class="muted">Saved into the app folder so OneDrive syncs them.</p>
+      <div class="form-buttons">
+        <button class="btn" id="btn-export-csv">Export CSV (invoicing)</button>
+        <button class="btn" id="btn-export-json">Save JSON backup</button>
+        <button class="btn" id="btn-import-json">Import JSON backup…</button>
+      </div>
+
+      <h2 class="section-title">Automatic backups</h2>
+      <p class="muted">A dated snapshot is saved automatically (on launch, every 12h, and on quit) into a <strong>backups</strong> folder here in OneDrive. The latest 14 days are kept. If anything ever breaks, use “Import JSON backup” above and pick the newest file.</p>
+      <div class="form-buttons">
+        <button class="btn" id="btn-backup-now">Back up now</button>
+        <button class="btn" id="btn-open-backups">Open backups folder</button>
+      </div>
+      <p class="muted" id="backup-status"></p>
+
+      <h2 class="section-title">Billing</h2>
+      <div class="row-2">
+        <label class="field">
+          <span>Currency symbol</span>
+          <input type="text" id="currency-symbol" maxlength="3" placeholder="$" />
+        </label>
+        <label class="field">
+          <span>Hours per working day</span>
+          <input type="number" id="hours-per-day" min="1" max="24" step="0.5" placeholder="8" />
+        </label>
+      </div>
+      <div class="row-2">
+        <label class="field">
+          <span>Round each session</span>
+          <select id="round-increment">
+            <option value="0">Off (exact)</option>
+            <option value="6">Nearest 6 min (0.1h)</option>
+            <option value="15">Nearest 15 min</option>
+            <option value="30">Nearest 30 min</option>
+          </select>
+        </label>
+      </div>
+      <label class="check">
+        <input type="checkbox" id="round-up" />
+        <span>Always round up (instead of nearest)</span>
+      </label>
+      <p class="muted">Rounding &amp; earnings apply to the History summary and CSV export. The Track tab always shows exact time.</p>
+
+      <h2 class="section-title">Startup</h2>
+      <label class="check">
+        <input type="checkbox" id="launch-at-login" />
+        <span>Launch automatically at login (starts hidden in the tray)</span>
+      </label>
+
+      <h2 class="section-title">Idle detection</h2>
+      <label class="field">
+        <span>Prompt to discard idle time after (minutes, 0 = off)</span>
+        <input type="number" id="idle-threshold" min="0" step="1" placeholder="10" />
+      </label>
+
+      <h2 class="section-title">Global hotkey</h2>
+      <label class="field">
+        <span>Open / hide the tracker (works from any app)</span>
+        <div class="hotkey-record">
+          <input type="text" id="hotkey-show" placeholder="Click here, then press your keys…" readonly />
+          <button class="btn small ghost" id="hotkey-clear" type="button">Clear</button>
+        </div>
+      </label>
+      <p class="muted">Click the box and press a combination (e.g. <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>T</kbd>). One hotkey brings the tracker to the front so you can see what's running, pick a client, and start with <kbd>Space</kbd>.</p>
+      <div class="form-buttons">
+        <button class="btn primary" id="btn-save-hotkeys">Save hotkey</button>
+      </div>
+      <p class="muted" id="hotkey-status"></p>
+
+      <h2 class="section-title">Where is my data?</h2>
+      <p class="muted">Live data auto-saves to the app's user-data folder. Use “Save JSON backup” for a portable copy you can restore with “Import”. Your full session history lives in the History tab.</p>
+    </section>
+  </main>
+
+  <!-- ============================ NOTE MODAL ============================ -->
+  <div id="note-modal" class="modal" hidden>
+    <div class="modal-box">
+      <h3>What did you work on?</h3>
+      <textarea id="note-input" rows="4" placeholder="e.g. Drafted proposal, client call, site visit…"></textarea>
+      <div class="form-buttons">
+        <button class="btn primary" id="note-save">Save session</button>
+        <button class="btn danger" id="note-discard">Discard session</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================ SESSION EDIT MODAL ============================ -->
+  <div id="session-modal" class="modal" hidden>
+    <div class="modal-box">
+      <h3 id="session-modal-title">Edit session</h3>
+      <input type="hidden" id="se-id" />
+      <label class="field">
+        <span>Client</span>
+        <select id="se-client"></select>
+      </label>
+      <div class="row-2">
+        <label class="field">
+          <span>Date</span>
+          <input type="date" id="se-date" />
+        </label>
+        <label class="field">
+          <span>&nbsp;</span>
+          <div class="time-pair">
+            <input type="time" id="se-start" step="60" />
+            <span class="dash">–</span>
+            <input type="time" id="se-end" step="60" />
+          </div>
+        </label>
+      </div>
+      <p class="muted" id="se-duration">Duration: 0:00</p>
+      <label class="field">
+        <span>Note</span>
+        <textarea id="se-note" rows="3" placeholder="What you did…"></textarea>
+      </label>
+      <div class="form-buttons">
+        <button class="btn primary" id="se-save">Save</button>
+        <button class="btn ghost" id="se-cancel">Cancel</button>
+        <button class="btn danger" id="se-delete">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================ IDLE MODAL ============================ -->
+  <div id="idle-modal" class="modal" hidden>
+    <div class="modal-box">
+      <h3>You were away</h3>
+      <p class="muted" id="idle-text">Idle time detected.</p>
+      <div class="form-buttons">
+        <button class="btn primary" id="idle-discard">Discard idle time</button>
+        <button class="btn ghost" id="idle-keep">Keep it</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" hidden></div>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    html, body {
+      margin: 0; padding: 0; height: 100%;
+      background: #0f1422; overflow: hidden;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      -webkit-user-select: none; user-select: none;
+    }
+    .pill {
+      box-sizing: border-box;
+      display: flex; align-items: center; gap: 9px;
+      height: 100%;
+      padding: 0 8px 0 14px;
+      background: #101422;
+      border: 1px solid rgba(255, 255, 255, 0.10);
+      -webkit-app-region: drag;   /* drag anywhere on the pill to move it */
+      cursor: move;
+    }
+    .pill:hover { border-color: rgba(52, 211, 153, 0.5); }
+    .dot {
+      width: 9px; height: 9px; flex: 0 0 auto;
+      border-radius: 50%; background: #34d399;
+      box-shadow: 0 0 7px #34d399;
+      animation: pulse 1.6s infinite;
+    }
+    @keyframes pulse {
+      0%   { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.6); }
+      70%  { box-shadow: 0 0 0 7px rgba(52, 211, 153, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(52, 211, 153, 0); }
+    }
+    .text { flex: 1 1 auto; min-width: 0; }
+    .name {
+      font-size: 11px; font-weight: 600; color: #c7cdda;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      line-height: 1.2;
+    }
+    .time {
+      font-size: 16px; font-weight: 700; color: #fff;
+      font-variant-numeric: tabular-nums; line-height: 1.2;
+    }
+    .open {
+      flex: 0 0 auto;
+      display: flex; align-items: center; justify-content: center;
+      width: 28px; height: 28px; border-radius: 8px;
+      font-size: 14px; color: #9aa3b8;
+      -webkit-app-region: no-drag;   /* clickable, not a drag handle */
+      cursor: pointer;
+    }
+    .open:hover { background: rgba(52, 211, 153, 0.18); color: #fff; }
+  </style>
+</head>
+<body>
+  <div class="pill" id="pill" title="Drag to move">
+    <span class="dot"></span>
+    <div class="text">
+      <div class="name" id="name">No client</div>
+      <div class="time" id="time">00:00:00</div>
+    </div>
+    <span class="open" id="open" title="Open the tracker">↗</span>
+  </div>
+
+  <script>
+    let state = { running: false, accumulatedSec: 0, lastStartTs: null, name: 'No client', color: '#34d399' };
+
+    function elapsed() {
+      let s = state.accumulatedSec || 0;
+      if (state.running && state.lastStartTs) s += (Date.now() - state.lastStartTs) / 1000;
+      return Math.max(0, Math.floor(s));
+    }
+    function fmt(total) {
+      const p = (n) => String(n).padStart(2, '0');
+      return `${p(Math.floor(total / 3600))}:${p(Math.floor((total % 3600) / 60))}:${p(total % 60)}`;
+    }
+    function render() {
+      document.getElementById('name').textContent = state.name || 'No client';
+      document.getElementById('time').textContent = fmt(elapsed());
+      const dot = document.querySelector('.dot');
+      if (state.color) { dot.style.background = state.color; dot.style.boxShadow = '0 0 7px ' + state.color; }
+    }
+
+    window.api.onMiniUpdate((s) => { state = s; render(); });
+    document.getElementById('open').addEventListener('click', () => window.api.miniShow());
+    setInterval(render, 1000);
+    render();
+  </script>
+</body>
+</html>
