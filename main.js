@@ -50,6 +50,7 @@ let miniWindow = null; // small always-on-top "still tracking" pill, shown while
 let tray = null;
 let isQuitting = false;
 let cachedData = null; // last data the renderer saved; used for tray menu state
+let dataReadFailure = null; // blocks automatic backups after a corrupt/unreadable data file
 
 // ---------------------------------------------------------------------------
 // Data file helpers
@@ -65,6 +66,18 @@ function readDataSync() {
       settings: { ...DEFAULT_DATA.settings, ...(parsed.settings || {}) },
     };
   } catch (err) {
+    if (err && err.code === 'ENOENT') return JSON.parse(JSON.stringify(DEFAULT_DATA));
+
+    // Preserve the unreadable file for manual recovery instead of silently replacing it.
+    // Automatic backups remain disabled for this run so an empty default snapshot cannot
+    // overwrite the most recent usable backup for today.
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const recoveredPath = path.join(path.dirname(DATA_FILE), `timing-data.corrupt-${stamp}.json`);
+    try { fs.renameSync(DATA_FILE, recoveredPath); } catch (_) { /* original remains in place */ }
+    dataReadFailure = {
+      message: String(err && err.message ? err.message : err),
+      recoveredPath: fs.existsSync(recoveredPath) ? recoveredPath : DATA_FILE,
+    };
     return JSON.parse(JSON.stringify(DEFAULT_DATA));
   }
 }
@@ -84,7 +97,7 @@ const BACKUP_RE = /^timing-backup-\d{4}-\d{2}-\d{2}\.json$/;
 
 function autoBackup() {
   try {
-    if (!cachedData) return null;
+    if (!cachedData || dataReadFailure) return null;
     fs.mkdirSync(AUTO_BACKUP_DIR, { recursive: true });
     const d = new Date();
     const p = (n) => String(n).padStart(2, '0');
@@ -507,6 +520,7 @@ ipcMain.handle('import:json', async () => {
       settings: { ...DEFAULT_DATA.settings, ...(parsed.settings || {}) },
     };
     await writeData(data);
+    dataReadFailure = null;
     rebuildTrayMenu();
     return { ok: true, data };
   } catch (err) {
@@ -531,6 +545,15 @@ if (!gotLock) {
     registerHotkeys(cachedData.settings || DEFAULT_DATA.settings);
     updateMini(); // in case a timer was already running and we booted hidden
 
+    if (dataReadFailure) {
+      dialog.showErrorBox(
+        'Stint could not read your data',
+        `The unreadable data file was preserved at:\n\n${dataReadFailure.recoveredPath}\n\n` +
+        'Stint opened with empty data and automatic backups are disabled for this run. ' +
+        'Use Settings → Import JSON backup to restore a known-good backup, then restart Stint.'
+      );
+    }
+
     autoBackup();                                    // snapshot on launch
     setInterval(autoBackup, 12 * 60 * 60 * 1000);    // and every 12 hours
 
@@ -540,7 +563,29 @@ if (!gotLock) {
     });
   });
 
-  app.on('before-quit', () => { isQuitting = true; autoBackup(); }); // snapshot on quit
+  app.on('before-quit', () => {
+    isQuitting = true;
+    // Clean shutdowns pause a running timer at the exact quit time. Unexpected exits are
+    // recovered from the renderer heartbeat, which limits any lost time to a few seconds
+    // without counting hours while the computer was off.
+    if (cachedData && cachedData.timer && cachedData.timer.running) {
+      const now = Date.now();
+      const t = cachedData.timer;
+      t.accumulatedSec = Math.max(0, Number(t.accumulatedSec || 0) +
+        (t.lastStartTs ? (now - Number(t.lastStartTs)) / 1000 : 0));
+      t.running = false;
+      t.lastStartTs = null;
+      t.lastPersistedTs = now;
+      try {
+        const tmp = DATA_FILE + '.tmp';
+        fs.writeFileSync(tmp, JSON.stringify(cachedData, null, 2), 'utf8');
+        fs.renameSync(tmp, DATA_FILE);
+      } catch (err) {
+        console.error('Failed to pause timer during shutdown:', err && err.message);
+      }
+    }
+    autoBackup();
+  }); // snapshot on quit
   app.on('will-quit', () => globalShortcut.unregisterAll());
 
   // Keep running in the tray when all windows are closed (do not quit on Windows).

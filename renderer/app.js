@@ -5,7 +5,8 @@
 // ---------------------------------------------------------------------------
 let data = null;
 let tickTimer = null;
-let pendingStop = null; // finalized session awaiting a note
+let pendingStop = null; // ID of a persisted session awaiting a note
+let recoveredRunningTimer = false;
 
 let historyPeriod = 'day';            // 'day' | 'week' | 'month'
 let historyAnchor = localDateStr(new Date()); // a date inside the viewed period
@@ -69,7 +70,16 @@ function earningsFor(clientId, sec) {
 let saveTimer = null;
 function save() {
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => window.api.saveData(data), 150);
+  saveTimer = setTimeout(() => {
+    if (data.timer.running) data.timer.lastPersistedTs = Date.now();
+    window.api.saveData(data);
+  }, 150);
+}
+
+function saveNow() {
+  clearTimeout(saveTimer);
+  if (data.timer.running) data.timer.lastPersistedTs = Date.now();
+  return window.api.saveData(data);
 }
 
 function toast(msg) {
@@ -137,6 +147,7 @@ function startTimer() {
   if (!t.sessionStart) t.sessionStart = new Date().toISOString();
   t.running = true;
   t.lastStartTs = Date.now();
+  t.lastPersistedTs = t.lastStartTs;
   save(); renderTimer(); startTick();
 }
 
@@ -165,10 +176,14 @@ function stopTimer() {
     note: '',
   };
   const keepClient = t.activeClientId;
-  data.timer = { activeClientId: keepClient, running: false, accumulatedSec: 0, lastStartTs: null, sessionStart: null };
-  stopTick(); renderTimer(); save();
-  if (durationSec <= 0) { renderAll(); return; }
-  pendingStop = session;
+  data.timer = { activeClientId: keepClient, running: false, accumulatedSec: 0, lastStartTs: null, sessionStart: null, lastPersistedTs: Date.now() };
+  stopTick(); renderTimer();
+  if (durationSec <= 0) { save(); renderAll(); return; }
+  // Persist the completed session before asking for a note. A crash or quit while the
+  // modal is open now leaves a valid session with a blank note instead of losing time.
+  data.sessions.push(session);
+  pendingStop = session.id;
+  saveNow();
   openNoteModal();
 }
 
@@ -552,8 +567,8 @@ function openNoteModal() {
 }
 function commitNote(note) {
   if (pendingStop) {
-    pendingStop.note = (note || '').trim();
-    data.sessions.push(pendingStop);
+    const session = data.sessions.find((s) => s.id === pendingStop);
+    if (session) session.note = (note || '').trim();
     pendingStop = null;
     save(); renderAll(); toast('Session saved.');
   }
@@ -561,8 +576,10 @@ function commitNote(note) {
 }
 // Throw the just-stopped session away entirely (e.g. mistimed or non-billable).
 function discardPending() {
+  if (pendingStop) data.sessions = data.sessions.filter((s) => s.id !== pendingStop);
   pendingStop = null;
   $('#note-modal').hidden = true;
+  save();
   renderAll();
   toast('Session discarded.');
 }
@@ -622,7 +639,12 @@ function seDurationSec() {
   let startISO = isoFrom(d, $('#se-start').value || '00:00');
   let endISO = isoFrom(d, $('#se-end').value || '00:00');
   let sec = (new Date(endISO) - new Date(startISO)) / 1000;
-  if (sec < 0) sec += 24 * 3600; // crossed midnight
+  if (sec < 0) {
+    const end = new Date(endISO);
+    end.setDate(end.getDate() + 1);
+    endISO = end.toISOString();
+    sec = (new Date(endISO) - new Date(startISO)) / 1000;
+  }
   return { sec: Math.round(sec), startISO, endISO };
 }
 function updateSeDuration() {
@@ -718,7 +740,7 @@ $('#btn-import-json').addEventListener('click', async () => {
 function fmtBackupStatus(info) {
   if (!info) return '';
   const last = info.lastBackup ? new Date(info.lastBackup).toLocaleString() : 'not yet this session';
-  return `Last backup: ${last} · ${info.count} snapshot${info.count === 1 ? '' : 's'} kept.`;
+  return `Last backup: ${last} · ${info.count} snapshot${info.count === 1 ? '' : 's'} kept · Folder: ${info.dir}`;
 }
 async function refreshBackupStatus() {
   try { $('#backup-status').textContent = fmtBackupStatus(await window.api.backupInfo()); } catch (_) {}
@@ -726,7 +748,7 @@ async function refreshBackupStatus() {
 $('#btn-backup-now').addEventListener('click', async () => {
   const r = await window.api.backupNow();
   $('#backup-status').textContent = fmtBackupStatus(r.info);
-  toast(r.ok ? 'Backup saved to OneDrive.' : 'Backup failed (see folder permissions).');
+  toast(r.ok ? 'Backup saved.' : 'Backup failed (see folder permissions).');
 });
 $('#btn-open-backups').addEventListener('click', () => window.api.openBackups());
 
@@ -900,7 +922,17 @@ function normalize(d) {
     if (oldDefaults.includes(d.settings.showHideHotkey)) d.settings.showHideHotkey = 'CommandOrControl+Alt+T';
     d.settings.hotkeyV3 = true;
   }
-  d.timer = Object.assign({ activeClientId: null, running: false, accumulatedSec: 0, lastStartTs: null, sessionStart: null }, d.timer || {});
+  d.timer = Object.assign({ activeClientId: null, running: false, accumulatedSec: 0, lastStartTs: null, sessionStart: null, lastPersistedTs: null }, d.timer || {});
+  if (d.timer.running) {
+    // Recover only through the most recent heartbeat; never count the offline gap.
+    const cutoff = Number(d.timer.lastPersistedTs || d.timer.lastStartTs || Date.now());
+    const started = Number(d.timer.lastStartTs || cutoff);
+    d.timer.accumulatedSec = Math.max(0, Number(d.timer.accumulatedSec || 0) + Math.max(0, cutoff - started) / 1000);
+    d.timer.running = false;
+    d.timer.lastStartTs = null;
+    d.timer.lastPersistedTs = cutoff;
+    recoveredRunningTimer = true;
+  }
   return d;
 }
 
@@ -917,4 +949,7 @@ function normalize(d) {
   renderAll();
   refreshBackupStatus();
   refreshLaunchAtLogin();
+  // Heartbeat running timers so an abrupt shutdown can recover nearly all elapsed time.
+  setInterval(() => { if (data.timer.running) saveNow(); }, 15 * 1000);
+  if (recoveredRunningTimer) toast('Previous timer recovered and paused. Review it, then resume or stop.');
 })();
