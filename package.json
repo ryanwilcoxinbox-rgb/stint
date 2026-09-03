@@ -1,13 +1,14 @@
 {
   "name": "client-time-tracker",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Stint — a dead-simple client time tracker with a global hotkey and per-client daily totals.",
   "main": "main.js",
   "author": "Ryan Wilcox",
   "license": "MIT",
   "scripts": {
     "start": "electron .",
-    "dist": "electron-builder --win"
+    "dist": "electron-builder --win",
+    "release": "electron-builder --win --publish always"
   },
   "devDependencies": {
     "electron": "^31.0.0",
@@ -16,6 +17,13 @@
   "build": {
     "appId": "com.ryanwilcox.clienttimetracker",
     "productName": "Stint",
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "ryanwilcoxinbox-rgb",
+        "repo": "stint"
+      }
+    ],
     "files": [
       "main.js",
       "preload.js",
@@ -34,5 +42,8 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true
     }
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.9"
   }
 }

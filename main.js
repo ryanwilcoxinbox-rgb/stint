@@ -1,6 +1,7 @@
 'use strict';
 
 const { app, BrowserWindow, Tray, Menu, globalShortcut, ipcMain, dialog, nativeImage, powerMonitor, screen, shell } = require('electron');
+const { autoUpdater } = require('electron-updater');
 const fs = require('fs');
 const fsp = require('fs/promises');
 const path = require('path');
@@ -607,6 +608,17 @@ if (!gotLock) {
 
     autoBackup();                                    // snapshot on launch
     setInterval(autoBackup, 12 * 60 * 60 * 1000);    // and every 12 hours
+
+    // Auto-update. Stint lives in the tray for days at a time, so a launch-only check
+    // could go a long while without firing — poll every 6 hours as well. Updates
+    // download in the background and install on quit, so a running timer is never
+    // interrupted. Skipped in dev, where there is no update feed to read.
+    if (app.isPackaged) {
+      autoUpdater.on('error', (err) => console.error('autoUpdater:', err && err.message));
+      const checkForUpdates = () => autoUpdater.checkForUpdatesAndNotify();
+      checkForUpdates();
+      setInterval(checkForUpdates, 6 * 60 * 60 * 1000);
+    }
 
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow();

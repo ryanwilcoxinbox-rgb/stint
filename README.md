@@ -72,6 +72,30 @@ This needs two one-time fixes on Windows, otherwise it fails:
 
 For a personal tool, the Desktop shortcut above is simpler and does the same job.
 
+## Shipping an update (auto-update)
+
+Installed copies keep themselves up to date from GitHub Releases. The app checks on
+launch and every 6 hours, downloads a newer version in the background, and installs it
+the next time Stint quits — so an update never interrupts a running timer.
+
+To ship a new version:
+
+1. **Bump `version` in `package.json`.** Auto-update compares this number; an unchanged
+   version ships nothing.
+2. **Provide a GitHub token** with `repo` scope, once per terminal:
+   `$env:GH_TOKEN = gh auth token` (or paste a token you created manually).
+3. **`npm run release`**
+
+That builds, creates the GitHub release, and uploads the installer alongside
+`latest.yml` — the feed that installed copies read.
+
+Two constraints worth remembering:
+
+- Only the **installer** build (`Stint Setup x.y.z.exe`) can auto-update. The portable
+  `.exe` never will; it has nowhere to install to.
+- The repo must stay **public**. Release assets on a private repo need authentication,
+  which would mean shipping a GitHub token inside the app.
+
 ## Keyboard shortcuts
 
 | Shortcut | Action |
