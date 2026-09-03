@@ -21,7 +21,8 @@
       {
         "provider": "github",
         "owner": "ryanwilcoxinbox-rgb",
-        "repo": "stint"
+        "repo": "stint",
+        "releaseType": "release"
       }
     ],
     "files": [

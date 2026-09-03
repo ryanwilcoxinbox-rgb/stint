@@ -89,6 +89,12 @@ To ship a new version:
 That builds, creates the GitHub release, and uploads the installer alongside
 `latest.yml` — the feed that installed copies read.
 
+The release goes **live immediately** (`"releaseType": "release"` in the publish config).
+electron-builder's own default is `draft`, which uploads everything but leaves the
+release invisible to the updater — the build reports success while shipping nothing to
+anyone. If you ever want a look before it goes out, drop that line and publish the draft
+by hand afterwards (`gh release edit v<version> --draft=false`).
+
 Two constraints worth remembering:
 
 - Only the **installer** build (`Stint Setup x.y.z.exe`) can auto-update. The portable
