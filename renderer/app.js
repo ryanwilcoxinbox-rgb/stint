@@ -751,6 +751,18 @@ $('#btn-backup-now').addEventListener('click', async () => {
   toast(r.ok ? 'Backup saved.' : 'Backup failed (see folder permissions).');
 });
 $('#btn-open-backups').addEventListener('click', () => window.api.openBackups());
+$('#btn-choose-backups').addEventListener('click', async () => {
+  const r = await window.api.chooseBackupDir();
+  if (!r.ok) {
+    if (r.error) toast('Could not use that folder: ' + r.error);
+    return;
+  }
+  data.settings.backupDir = r.dir;
+  await saveNow();
+  const backup = await window.api.backupNow();
+  $('#backup-status').textContent = fmtBackupStatus(backup.info);
+  toast(backup.ok ? 'Backup folder updated and tested.' : 'Folder saved, but the test backup failed.');
+});
 
 function refreshLaunchAtLogin() {
   $('#launch-at-login').checked = !!data.settings.launchAtLogin;
@@ -911,6 +923,7 @@ function normalize(d) {
     globalHotkey: '', showHideHotkey: 'CommandOrControl+Alt+T',
     currencySymbol: '€', roundIncrementMin: 0, roundUp: false, idleThresholdMin: 10,
     hoursPerDay: 8, launchAtLogin: false,
+    backupDir: '',
   }, d.settings || {});
   // One-time hotkey migration: fold the two old hotkeys into one and move the old
   // defaults (Ctrl+Shift+T clashes with Chrome's reopen-tab; Ctrl+Shift+Space also

@@ -22,12 +22,21 @@ const TRAY_ICON_PAUSED = path.join(ASSET_DIR, 'tray-icon-paused.png');
 // Backups/exports must land in a writable, OneDrive-synced folder. In dev that's the
 // project folder (__dirname); once installed, __dirname is read-only inside the app
 // bundle, so fall back to the user's OneDrive root (or Documents).
-const BACKUP_DIR = app.isPackaged
+const DEFAULT_BACKUP_DIR = app.isPackaged
   ? path.join(process.env.OneDrive || process.env.OneDriveConsumer || app.getPath('documents'), 'Client Time Tracker')
   : __dirname;
-const AUTO_BACKUP_DIR = path.join(BACKUP_DIR, 'backups');
-const BACKUP_KEEP = 14; // daily snapshots to retain
+// Retention is tiered, because backups do two different jobs. Recent snapshots are the
+// "undo" tier: they must cover the window in which a silent problem (a bad import, a
+// mangled session) would still be noticed — i.e. at least one invoicing cycle. Older
+// snapshots are the archive tier, where one per month is plenty and keeping every day
+// just grows the synced folder for nothing. Set BACKUP_DAILY_DAYS to 0 to keep everything.
+const BACKUP_DAILY_DAYS = 90; // keep every daily snapshot from the last N days
 let lastBackupTime = null;
+
+function backupRoot() {
+  return (cachedData && cachedData.settings && cachedData.settings.backupDir) || DEFAULT_BACKUP_DIR;
+}
+function autoBackupDir() { return path.join(backupRoot(), 'backups'); }
 
 const DEFAULT_DATA = {
   clients: [],
@@ -42,6 +51,7 @@ const DEFAULT_DATA = {
     idleThresholdMin: 10,
     hoursPerDay: 8,
     launchAtLogin: false,
+    backupDir: '',
   },
 };
 
@@ -91,27 +101,49 @@ async function writeData(data) {
 
 // ---------------------------------------------------------------------------
 // Automatic backups — daily JSON snapshot into the OneDrive-synced project
-// folder, keeping the most recent BACKUP_KEEP days. Returns the file path.
+// folder. One file per calendar day, thinned to one per month once it ages out of the
+// daily window (see BACKUP_DAILY_DAYS). Returns the file path.
 // ---------------------------------------------------------------------------
 const BACKUP_RE = /^timing-backup-\d{4}-\d{2}-\d{2}\.json$/;
+const BACKUP_PREFIX = 'timing-backup-';
+
+const pad2 = (n) => String(n).padStart(2, '0');
+function dayKey(d) { return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; }
+// 'timing-backup-2026-09-03.json' -> '2026-09-03'. Names sort chronologically, so these
+// keys can be compared as plain strings.
+function dayOf(file) { return file.slice(BACKUP_PREFIX.length, -'.json'.length); }
+
+// Delete only snapshots that are both outside the daily window AND not the newest
+// snapshot of their month. Anything inside the window, and one file per month forever,
+// survives.
+function pruneBackups(dir, files) {
+  if (!BACKUP_DAILY_DAYS) return;
+  const cutoff = new Date();
+  cutoff.setHours(0, 0, 0, 0);
+  cutoff.setDate(cutoff.getDate() - BACKUP_DAILY_DAYS);
+  const cutoffDay = dayKey(cutoff);
+
+  const aged = files.filter((f) => dayOf(f) < cutoffDay).sort();
+  const keepForMonth = new Map(); // 'YYYY-MM' -> newest aged snapshot in that month
+  for (const f of aged) keepForMonth.set(dayOf(f).slice(0, 7), f);
+
+  for (const f of aged) {
+    if (keepForMonth.get(dayOf(f).slice(0, 7)) === f) continue;
+    try { fs.unlinkSync(path.join(dir, f)); } catch (_) {}
+  }
+}
 
 function autoBackup() {
   try {
     if (!cachedData || dataReadFailure) return null;
-    fs.mkdirSync(AUTO_BACKUP_DIR, { recursive: true });
+    const dir = autoBackupDir();
+    fs.mkdirSync(dir, { recursive: true });
     const d = new Date();
-    const p = (n) => String(n).padStart(2, '0');
-    const day = `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
-    const file = path.join(AUTO_BACKUP_DIR, `timing-backup-${day}.json`);
+    const file = path.join(dir, `${BACKUP_PREFIX}${dayKey(d)}.json`);
     fs.writeFileSync(file, JSON.stringify(cachedData, null, 2), 'utf8'); // overwrites same-day = latest
     lastBackupTime = d.toISOString();
 
-    // Rotate: keep the newest BACKUP_KEEP daily files.
-    const files = fs.readdirSync(AUTO_BACKUP_DIR).filter((f) => BACKUP_RE.test(f)).sort();
-    while (files.length > BACKUP_KEEP) {
-      const old = files.shift();
-      try { fs.unlinkSync(path.join(AUTO_BACKUP_DIR, old)); } catch (_) {}
-    }
+    pruneBackups(dir, fs.readdirSync(dir).filter((f) => BACKUP_RE.test(f)));
     return file;
   } catch (err) {
     console.error('autoBackup failed:', err && err.message);
@@ -120,9 +152,10 @@ function autoBackup() {
 }
 
 function backupInfo() {
+  const dir = autoBackupDir();
   let count = 0;
-  try { count = fs.readdirSync(AUTO_BACKUP_DIR).filter((f) => BACKUP_RE.test(f)).length; } catch (_) {}
-  return { dir: AUTO_BACKUP_DIR, lastBackup: lastBackupTime, count };
+  try { count = fs.readdirSync(dir).filter((f) => BACKUP_RE.test(f)).length; } catch (_) {}
+  return { dir, root: backupRoot(), lastBackup: lastBackupTime, count };
 }
 
 // ---------------------------------------------------------------------------
@@ -474,13 +507,31 @@ ipcMain.handle('login:set', (_e, enabled) => {
 ipcMain.handle('backup:now', () => { const f = autoBackup(); return { ok: !!f, file: f, info: backupInfo() }; });
 ipcMain.handle('backup:info', () => backupInfo());
 ipcMain.handle('backup:reveal', async () => {
-  try { fs.mkdirSync(AUTO_BACKUP_DIR, { recursive: true }); } catch (_) {}
-  await shell.openPath(AUTO_BACKUP_DIR);
+  const dir = autoBackupDir();
+  try { fs.mkdirSync(dir, { recursive: true }); } catch (_) {}
+  await shell.openPath(dir);
   return true;
 });
 
+ipcMain.handle('backup:choose-dir', async () => {
+  const res = await dialog.showOpenDialog(mainWindow, {
+    title: 'Choose automatic backup folder',
+    defaultPath: backupRoot(),
+    properties: ['openDirectory', 'createDirectory'],
+  });
+  if (res.canceled || !res.filePaths || !res.filePaths[0]) return { ok: false };
+  const dir = res.filePaths[0];
+  try {
+    await fsp.mkdir(path.join(dir, 'backups'), { recursive: true });
+    await fsp.access(path.join(dir, 'backups'), fs.constants.W_OK);
+    return { ok: true, dir };
+  } catch (err) {
+    return { ok: false, error: String(err && err.message ? err.message : err) };
+  }
+});
+
 ipcMain.handle('export:csv', async (_e, data) => {
-  const defaultPath = path.join(BACKUP_DIR, `time-export_${timestampSlug()}.csv`);
+  const defaultPath = path.join(backupRoot(), `time-export_${timestampSlug()}.csv`);
   const res = await dialog.showSaveDialog(mainWindow, {
     title: 'Export sessions to CSV',
     defaultPath,
@@ -492,7 +543,7 @@ ipcMain.handle('export:csv', async (_e, data) => {
 });
 
 ipcMain.handle('export:json', async (_e, data) => {
-  const defaultPath = path.join(BACKUP_DIR, `time-backup_${timestampSlug()}.json`);
+  const defaultPath = path.join(backupRoot(), `time-backup_${timestampSlug()}.json`);
   const res = await dialog.showSaveDialog(mainWindow, {
     title: 'Save JSON backup',
     defaultPath,

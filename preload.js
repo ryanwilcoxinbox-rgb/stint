@@ -15,6 +15,7 @@ contextBridge.exposeInMainWorld('api', {
   backupNow: () => ipcRenderer.invoke('backup:now'),
   backupInfo: () => ipcRenderer.invoke('backup:info'),
   openBackups: () => ipcRenderer.invoke('backup:reveal'),
+  chooseBackupDir: () => ipcRenderer.invoke('backup:choose-dir'),
 
   // Main -> renderer signals (from global hotkey or tray menu).
   onToggle: (cb) => ipcRenderer.on('hotkey:toggle', () => cb()),

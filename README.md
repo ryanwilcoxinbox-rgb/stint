@@ -91,9 +91,14 @@ Global hotkeys are configurable on the **Data** tab.
   mid-save can't corrupt it. **Note:** this folder is *not* in OneDrive, so it is not
   synced on its own — that's why automatic backups exist.
 - **Automatic backups** — a dated snapshot (`backups/timing-backup-YYYY-MM-DD.json`) is
-  written into this OneDrive-synced project folder on launch, every 12 hours, and on quit.
-  The latest **14 days** are kept. Manage via **Data → Automatic backups**
-  (Back up now / Open backups folder).
+  written into the chosen backup folder on launch, every 12 hours, and on quit. One file
+  per calendar day (the day's file is overwritten with the latest state).
+  **Retention is tiered:** every daily snapshot from the last **90 days** is kept, and
+  older ones are thinned to **one per month, kept indefinitely**. The 90-day tier is the
+  "undo" window — long enough that a problem spotted at invoicing time still has a clean
+  snapshot behind it — while the monthly archive keeps long-term history without the
+  synced folder growing forever. Manage via **Data → Automatic backups**
+  (Back up now / Open backups folder / Choose backup folder).
 - **Recovery** — if anything ever breaks or the PC is lost, install the app on the new
   machine, open **Data → Import JSON backup**, and pick the newest file from `backups/`.
   You're back to your last snapshot.
